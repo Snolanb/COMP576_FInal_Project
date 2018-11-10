@@ -51,7 +51,7 @@ print(Seattle.index)
 
 features_ori = list(Seattle)
 features_ori.remove('weather_description')
-features_ori.remove('temperature')
+# features_ori.remove('temperature')
 scaler = MinMaxScaler()
 Seattle[features_ori] = scaler.fit_transform(Seattle[features_ori])
 
@@ -119,7 +119,7 @@ model.add(Dropout(0.2))
 model.add(Dense(1))
 model.compile(loss='mae', optimizer='adam')
 
-history = model.fit(train_X, train_Y, epochs=50, batch_size=72, validation_data=(val_X, val_Y), verbose=2, shuffle=False)
+history = model.fit(train_X, train_Y, epochs=20, batch_size=72, validation_data=(val_X, val_Y), verbose=2, shuffle=False)
 plt.plot(history.history['loss'], label='train')
 plt.plot(history.history['val_loss'], label='test')
 plt.legend()
