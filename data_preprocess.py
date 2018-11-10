@@ -5,7 +5,7 @@ from functools import reduce
 import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.layers import LSTM
+from keras.layers import LSTM, Dropout
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
@@ -91,11 +91,49 @@ def series_to_supervised(data, n_in=0, n_out=3, dropnan=True):
 
 
 #######################################################################################################################
-data = []
+data_X = []
+data_Y = []
 sequence_length = 48
+temp_features = Seattle[features_ori].copy()
+temp_target = Seattle['temperature'].copy()
 for index in range(len(Seattle.index) - sequence_length):
-    data.append(Seattle[features_ori].iloc[index:index+sequence_length].values)
-data = np.array(data)
+    data_X.append(temp_features.iloc[index:index+sequence_length].values)
+    data_Y.append(temp_target.iloc[index:index+sequence_length].values)
+data_X = np.array(data_X)
+data_Y = np.array(data_Y)
+train_index = 365*24
+val_index = 31*24
+test_index = 62*24
+train_X = data_X[:train_index, :-1, :]
+train_Y = data_Y[:train_index, -1]
+val_X = data_X[train_index:train_index+val_index, :-1, :]
+val_Y = data_Y[train_index:train_index+val_index, -1]
+test_X = data_X[train_index+val_index:train_index+val_index+test_index, :-1, :]
+test_Y = data_Y[train_index+val_index:train_index+val_index+test_index, -1]
+
+model = Sequential()
+model.add(LSTM(50, input_shape=(None, data_X.shape[2]), return_sequences=True))
+model.add(Dropout(0.2))
+model.add(LSTM(100, return_sequences=False))
+model.add(Dropout(0.2))
+model.add(Dense(1))
+model.compile(loss='mae', optimizer='adam')
+
+history = model.fit(train_X, train_Y, epochs=50, batch_size=72, validation_data=(val_X, val_Y), verbose=2, shuffle=False)
+plt.plot(history.history['loss'], label='train')
+plt.plot(history.history['val_loss'], label='test')
+plt.legend()
+plt.show()
+
+y_pred = model.predict(test_X)
+y_pred = y_pred.reshape(y_pred.shape[0],)
+rmse = np.sqrt(mean_squared_error(test_Y, y_pred))
+plt.figure()
+plt.plot(y_pred)
+plt.plot(test_Y)
+plt.show()
+print('Test RMSE: %.3f' % rmse)
+
 
 # #######################################################################################################################
 # # plt.figure()
@@ -136,6 +174,7 @@ data = np.array(data)
 # plt.plot(history.history['val_loss'], label='test')
 # plt.legend()
 # plt.show()
+
 #
 # y_pred = model.predict(test_X)
 # y_pred=y_pred.reshape(y_pred.shape[0],)
