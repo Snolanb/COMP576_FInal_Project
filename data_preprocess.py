@@ -3,6 +3,12 @@ import numpy as np
 from datetime import datetime
 from functools import reduce
 import matplotlib.pyplot as plt
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
 
 DATA_DIR = './historical_hourly_weather_data/'
 temperature = pd.read_csv(DATA_DIR+'temperature.csv')
@@ -38,10 +44,18 @@ Seattle['hour'] = Seattle.apply(lambda row: row.datetime[11:13], axis=1)
 # Seattle = Seattle.set_index(['year', 'month', 'day', 'hour'])
 # Seattle.drop('datetime', axis=1, inplace=True)
 Seattle = Seattle.set_index('datetime')
+Seattle['weather_description'] = Seattle['weather_description'].astype('category')
+Seattle.dropna(inplace=True)
 print(Seattle.index)
 
 
-def series_to_supervised(data, n_in=0, n_out=2, dropnan=True):
+features_ori = list(Seattle)
+features_ori.remove('weather_description')
+features_ori.remove('temperature')
+scaler = MinMaxScaler()
+Seattle[features_ori] = scaler.fit_transform(Seattle[features_ori])
+
+def series_to_supervised(data, n_in=0, n_out=3, dropnan=True):
     """
     Frame a time series as a supervised learning dataset.
     Arguments:
@@ -76,18 +90,59 @@ def series_to_supervised(data, n_in=0, n_out=2, dropnan=True):
     return agg
 
 
-# plt.figure()
-# Seattle.plot(subplots=True)
+#######################################################################################################################
+data = []
+sequence_length = 48
+for index in range(len(Seattle.index) - sequence_length):
+    data.append(Seattle[features_ori].iloc[index:index+sequence_length].values)
+data = np.array(data)
+
+# #######################################################################################################################
+# # plt.figure()
+# # Seattle.plot(subplots=True)
+# # plt.show()
+# Seattle_final = series_to_supervised(Seattle)
+# # print(Seattle_final)
+# # Seattle_final = pd.get_dummies(Seattle_final, columns=['weather_description(t)', 'weather_description(t+1)'])
+# features = list(Seattle_final)
+# features.remove('temperature(t)')
+# features.remove('weather_description(t)')
+# features.remove('weather_description(t+1)')
+# features.remove('weather_description(t+2)')
+# target = 'temperature(t)'
+# N_TRAIN_DAYS = 365
+# N_TRAIN_HOURS = N_TRAIN_DAYS * 24
+#
+# train_X = Seattle_final.loc[:'2015-10-01 12:00:00', features].values
+# train_Y = Seattle_final.loc[:'2015-10-01 12:00:00', target].values
+# val_X = Seattle_final.loc['2015-10-01 12:00:00':'2015-11-01 12:00:00', features].values
+# val_Y = Seattle_final.loc['2015-10-01 12:00:00':'2015-11-01 12:00:00', target].values
+# test_X = Seattle_final.loc['2015-11-01 12:00:00':'2016-01-01 12:00:00', features].values
+# test_Y = Seattle_final.loc['2015-11-01 12:00:00':'2016-01-01 12:00:00', target].values
+#
+# train_X = train_X.reshape(train_X.shape[0], 1, train_X.shape[1])
+# val_X = val_X.reshape(val_X.shape[0], 1, val_X.shape[1])
+# test_X = test_X.reshape(test_X.shape[0], 1, test_X.shape[1])
+#
+# model = Sequential()
+# # model.add(LSTM(40, input_shape=(train_X.shape[1], train_X.shape[2])))
+# model.add(LSTM(40, return_sequences=True))
+# model.add(LSTM(40))
+# model.add(Dense(1))
+# model.compile(loss='mae', optimizer='adam')
+# history = model.fit(train_X, train_Y, epochs=50, batch_size=72, validation_data=(val_X, val_Y), verbose=2, shuffle=False)
+#
+# plt.plot(history.history['loss'], label='train')
+# plt.plot(history.history['val_loss'], label='test')
+# plt.legend()
 # plt.show()
-Seattle_final = series_to_supervised(Seattle)
-# print(Seattle_final)
-
-features = list(Seattle_final)
-features.remove('temperature(t)')
-target = 'temperature(t)'
-N_TRAIN_DAYS = 365
-N_TRAIN_HOURS = N_TRAIN_DAYS * 24
-
-train = Seattle_final.loc[:'2013-10-01 12:00:00', features].values
-test = Seattle_final.loc['2013-10-01 12:00:00':'2014-01-01 12:00:00', target].values
-
+#
+# y_pred = model.predict(test_X)
+# y_pred=y_pred.reshape(y_pred.shape[0],)
+# rmse = np.sqrt(mean_squared_error(test_Y, y_pred))
+# plt.figure()
+# plt.plot(y_pred)
+# plt.plot(test_Y)
+# plt.show()
+# print('Test RMSE: %.3f' % rmse)
+# #######################################################################################################################
